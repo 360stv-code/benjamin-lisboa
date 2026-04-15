@@ -10,7 +10,6 @@
 <meta name="theme-color" content="#0a0d1a">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
-<script>if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(regs=>{regs.forEach(r=>r.unregister());});}</script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {
@@ -153,7 +152,7 @@ canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; }
   <div id="header">
     <div class="brand">Lisboa Solutions</div>
     <h1>Benjamin Lisboa</h1>
-    <div class="subtitle">Math Builder · Construa mundos. Ganhe moedas!</div>
+    <div class="subtitle">Benjax V1 · Construa mundos. Ganhe moedas!</div>
   </div>
 
   <div id="wallet">
@@ -561,7 +560,7 @@ function soundUnlock() { try{const ac=getAudio(),t=ac.currentTime;[1047,1319,156
 function soundHint()   { try{playTone(880,'sine',0.12,0.1);setTimeout(()=>playTone(660,'sine',0.12,0.08),100);}catch(e){} }
 
 buildPool(); buildTools(); drawGrid(); renderQuestion();
-
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 </script>
 </body>
 </html>
