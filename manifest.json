@@ -1,0 +1,13 @@
+{
+  "name": "Lisboa Solutions — Math Builder",
+  "short_name": "Lisboa Solutions",
+  "description": "Jogo de construção com desafios de matemática e moedas",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0a0d1a",
+  "theme_color": "#0a0d1a",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
