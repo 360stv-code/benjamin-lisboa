@@ -1,4 +1,4 @@
-const CACHE = 'benjax-run-v1';
+const CACHE = 'benjax-surf-v1';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
