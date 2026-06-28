@@ -1,17 +1,17 @@
 {
   "name": "Benjax Arcade",
   "short_name": "Benjax",
-  "description": "Hub de minijogos — Lisboa Solutions",
+  "description": "Hub de minijogos 3D — Lisboa Solutions",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "portrait",
-  "background_color": "#0a0a1a",
-  "theme_color": "#0a0a1a",
+  "background_color": "#0b1026",
+  "theme_color": "#0b1026",
   "lang": "pt-BR",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' rx='90' fill='%230a0a1a'/%3E%3Ccircle cx='256' cy='220' r='130' fill='%23a855f7'/%3E%3Ccircle cx='205' cy='175' r='42' fill='%23c084fc'/%3E%3Ctext x='256' y='400' font-size='130' font-weight='900' text-anchor='middle' fill='%23ffd700' font-family='Arial'%3EARCADE%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' rx='96' fill='%230b1026'/%3E%3Ccircle cx='185' cy='200' r='80' fill='%23a855f7'/%3E%3Ccircle cx='330' cy='180' r='62' fill='%2338bdf8'/%3E%3Ccircle cx='256' cy='320' r='70' fill='%2334d399'/%3E%3Ctext x='256' y='450' font-size='92' font-weight='900' text-anchor='middle' fill='%23ffd700' font-family='Arial'%3EARCADE%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
