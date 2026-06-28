@@ -1,4 +1,4 @@
-const CACHE = 'benjax-puzzle-v1';
+const CACHE = 'benjax-surf3d-v1';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -13,6 +13,18 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
+  // Three.js da CDN: cache-first (guarda na 1a carga p/ funcionar offline depois)
+  if (url.indexOf('cdnjs.cloudflare.com') !== -1) {
+    e.respondWith(
+      caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+        const copy = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(()=>{});
+        return resp;
+      }))
+    );
+    return;
+  }
+  // index.html: network-first p/ pegar versao nova quando online
   if (e.request.mode === 'navigate' || url.endsWith('index.html') || url.endsWith('/')) {
     e.respondWith(
       fetch(e.request).then(resp => {
