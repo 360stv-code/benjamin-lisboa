@@ -30,7 +30,7 @@
   .sbtn:active{transform:scale(.93);}
   .hint{font-size:13px;color:#c7d2fe;text-align:center;max-width:300px;line-height:1.5;background:rgba(0,0,0,.25);padding:10px 14px;border-radius:14px;}
 
-  #hud{position:absolute;top:0;left:0;right:0;z-index:5;display:none;padding:calc(env(safe-area-inset-top,0px)+10px) 16px 0;justify-content:space-between;align-items:flex-start;pointer-events:none;}
+  #hud{position:absolute;top:0;left:0;right:0;z-index:5;display:none;padding:calc(env(safe-area-inset-top,0px)+58px) 16px 0;justify-content:space-between;align-items:flex-start;pointer-events:none;}
   .hbox{background:rgba(0,0,0,.42);border-radius:14px;padding:7px 13px;backdrop-filter:blur(4px);font-weight:900;font-size:17px;line-height:1.1;}
   .hbox small{font-size:10px;opacity:.7;display:block;font-weight:700;}
   #hRing{color:#ffd700;}#hTime{color:#22d3ee;text-align:center;}#hSpeed{color:#a855f7;text-align:right;}
@@ -150,28 +150,54 @@ function initThree(){
     document.getElementById('three').appendChild(renderer.domElement);
 
     scene=new THREE.Scene();
-    scene.background=new THREE.Color(0x2a1a5e);
-    scene.fog=new THREE.Fog(0x2a1a5e, 30, 80);
+    scene.background=new THREE.Color(0x0a0a2e);
+    scene.fog=new THREE.Fog(0x0a0a2e, 35, 90);
 
     camera=new THREE.PerspectiveCamera(62,1,0.1,200);
 
-    // luzes
-    var amb=new THREE.AmbientLight(0x8a7fff,0.75);scene.add(amb);
-    var sun=new THREE.DirectionalLight(0xffffff,1.15);sun.position.set(-8,20,6);sun.castShadow=true;
-    sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;sun.shadow.camera.near=1;sun.shadow.camera.far=60;
-    sun.shadow.camera.left=-20;sun.shadow.camera.right=20;sun.shadow.camera.top=20;sun.shadow.camera.bottom=-20;
-    scene.add(sun);
-    var rim=new THREE.PointLight(0x22d3ee,0.8,60);rim.position.set(6,8,-10);scene.add(rim);
+    // luzes — noite com luar
+    var amb=new THREE.AmbientLight(0x6a7adf,0.55);scene.add(amb);
+    var moonLight=new THREE.DirectionalLight(0xcdd6ff,1.0);moonLight.position.set(-10,22,8);moonLight.castShadow=true;
+    moonLight.shadow.mapSize.width=1024;moonLight.shadow.mapSize.height=1024;moonLight.shadow.camera.near=1;moonLight.shadow.camera.far=60;
+    moonLight.shadow.camera.left=-20;moonLight.shadow.camera.right=20;moonLight.shadow.camera.top=20;moonLight.shadow.camera.bottom=-20;
+    scene.add(moonLight);
+    var rim=new THREE.PointLight(0x22d3ee,0.7,60);rim.position.set(6,8,-10);scene.add(rim);
+    var rim2=new THREE.PointLight(0x7c3aed,0.5,70);rim2.position.set(-8,6,-30);scene.add(rim2);
 
-    // sol visual (esfera com glow)
-    var sunBall=new THREE.Mesh(new THREE.SphereGeometry(6,24,24),new THREE.MeshBasicMaterial({color:0xfde68a}));
-    sunBall.position.set(14,18,-60);scene.add(sunBall);
+    // CÉU em degradê (esfera invertida com gradiente azul-escuro -> roxo)
+    var skyGeo=new THREE.SphereGeometry(120,32,16);
+    var skyMat=new THREE.ShaderMaterial({
+      side:THREE.BackSide,depthWrite:false,
+      uniforms:{top:{value:new THREE.Color(0x05031a)},mid:{value:new THREE.Color(0x1a1356)},bot:{value:new THREE.Color(0x3b2a7a)}},
+      vertexShader:'varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader:'varying vec3 vP;uniform vec3 top;uniform vec3 mid;uniform vec3 bot;void main(){float h=normalize(vP).y;vec3 c;if(h>0.0){c=mix(mid,top,clamp(h*1.3,0.0,1.0));}else{c=mix(mid,bot,clamp(-h*1.6,0.0,1.0));}gl_FragColor=vec4(c,1.0);}'
+    });
+    scene.add(new THREE.Mesh(skyGeo,skyMat));
 
-    // estrelas
+    // LUA CHEIA bonita: esfera clara + crateras + halo
+    var moonGrp=new THREE.Group();
+    var moon=new THREE.Mesh(new THREE.SphereGeometry(7,40,40),new THREE.MeshStandardMaterial({color:0xf4f1e0,emissive:0xe8e4cf,emissiveIntensity:.85,roughness:1}));
+    moonGrp.add(moon);
+    // crateras (pequenas esferas escurecidas grudadas na superfície)
+    var craterMat=new THREE.MeshStandardMaterial({color:0xcfc9b0,emissive:0xb8b29a,emissiveIntensity:.4,roughness:1});
+    var craterData=[[2.2,2.0,0.9],[-2.8,1.2,1.2],[0.5,-2.5,1.0],[3.0,-1.5,0.7],[-1.5,-2.0,0.6],[-3.2,-1.8,0.5],[1.5,3.2,0.6]];
+    for(var ci=0;ci<craterData.length;ci++){var cd=craterData[ci];var cr=new THREE.Mesh(new THREE.SphereGeometry(cd[2],16,16),craterMat);
+      var cv2=new THREE.Vector3(cd[0],cd[1],Math.sqrt(Math.max(0,49-cd[0]*cd[0]-cd[1]*cd[1])));cr.position.copy(cv2.multiplyScalar(0.92));cr.scale.z=0.4;moonGrp.add(cr);}
+    // halo (glow) — plano com material aditivo
+    var haloMat=new THREE.SpriteMaterial({color:0xbcd2ff,transparent:true,opacity:0.4,blending:THREE.AdditiveBlending});
+    var halo=new THREE.Sprite(haloMat);halo.scale.set(34,34,1);moonGrp.add(halo);
+    moonGrp.position.set(16,20,-70);scene.add(moonGrp);
+
+    // estrelas (mais e com brilhos variados)
     var starGeo=new THREE.BufferGeometry(),sp=[];
-    for(var i=0;i<300;i++)sp.push((Math.random()-.5)*160,(Math.random()*0.5+0.3)*120,-(Math.random()*160+20));
+    for(var i=0;i<500;i++)sp.push((Math.random()-.5)*180,(Math.random()*0.55+0.25)*130,-(Math.random()*170+20));
     starGeo.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
-    scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.4,sizeAttenuation:true})));
+    scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.5,sizeAttenuation:true,transparent:true,opacity:0.9})));
+    // estrelas grandes brilhantes esparsas
+    var bigGeo=new THREE.BufferGeometry(),bsp=[];
+    for(var i=0;i<40;i++)bsp.push((Math.random()-.5)*160,(Math.random()*0.5+0.3)*120,-(Math.random()*150+30));
+    bigGeo.setAttribute('position',new THREE.Float32BufferAttribute(bsp,3));
+    scene.add(new THREE.Points(bigGeo,new THREE.PointsMaterial({color:0xbcd2ff,size:1.1,sizeAttenuation:true,transparent:true,opacity:0.85})));
 
     buildPlayer();
     clock=new THREE.Clock();
@@ -221,10 +247,26 @@ function recolorPlayer(){if(!playerGroup)return;playerGroup.children[0].material
    O mundo se move em +Z; quando o chunk mais "atrás" passa da câmera (z grande),
    ele é removido e recriado na frente do chunk mais distante (z menor). Contínuo. */
 var trackMatA,trackMatB,edgeMat;
+// paleta de temas de pavimento (par claro/escuro), NENHUM rosa. Avança a cada 50 anéis.
+var FLOOR_THEMES=[
+  [0x16a34a,0x15803d], // verde
+  [0x2563eb,0x1e40af], // azul
+  [0x0891b2,0x155e75], // ciano
+  [0x7c3aed,0x5b21b6], // roxo
+  [0xea580c,0x9a3412], // laranja
+  [0xca8a04,0x854d0e], // dourado
+  [0x0d9488,0x115e59], // teal
+  [0x4f46e5,0x3730a3]  // índigo
+];
+var floorTheme=0;
 function trackMaterials(){
-  trackMatA=new THREE.MeshStandardMaterial({color:0x16a34a,roughness:.85});
-  trackMatB=new THREE.MeshStandardMaterial({color:0x15803d,roughness:.85});
+  trackMatA=new THREE.MeshStandardMaterial({color:FLOOR_THEMES[0][0],roughness:.85});
+  trackMatB=new THREE.MeshStandardMaterial({color:FLOOR_THEMES[0][1],roughness:.85});
   edgeMat=new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x0891b2,emissiveIntensity:.5});
+}
+function setFloorTheme(idx){
+  floorTheme=idx%FLOOR_THEMES.length;
+  if(trackMatA){trackMatA.color.setHex(FLOOR_THEMES[floorTheme][0]);trackMatB.color.setHex(FLOOR_THEMES[floorTheme][1]);}
 }
 var CHUNK=12, chunkParity=0;
 function makeChunkAt(zCenter,populateIt){
@@ -243,17 +285,22 @@ function populate(zCenter){
   var roll=Math.random();
   var hard=G.rings>250;
   var spikeChance=hard?0.30:0.16;
+  // após 250, a faixa da direita (índice 2) fica sem pedras = rota segura
+  function safeLaneForSpike(L){ if(hard && lanes.indexOf(L)===2) return lanes[Math.floor(Math.random()*2)]; return L; }
   if(roll<0.45){
-    for(var i=0;i<4;i++)spawnRing(lane,zCenter+ i*2 -3);
+    for(var i=0;i<5;i++)spawnRing(lane,zCenter+ i*2 -4); // fileira maior de anéis
   } else if(roll<0.60 && G.rings>10){
     spawnRamp(lane,zCenter);
-    spawnRing(lane,zCenter-3); spawnRing(lane,zCenter-5);
+    spawnRing(lane,zCenter-3); spawnRing(lane,zCenter-5); spawnRing(lane,zCenter-7);
   } else if(roll<0.60+spikeChance && G.rings>6){
-    spawnSpike(lane,zCenter);
-    var safe=lanes[(lanes.indexOf(lane)+1)%3];spawnRing(safe,zCenter);
-    if(hard&&Math.random()<0.4){var lane2=lanes[(lanes.indexOf(lane)+2)%3];spawnSpike(lane2,zCenter);}
+    var sl=safeLaneForSpike(lane);
+    spawnSpike(sl,zCenter);
+    var safe=lanes[(lanes.indexOf(sl)+1)%3];spawnRing(safe,zCenter);spawnRing(safe,zCenter-2);
+    if(hard&&Math.random()<0.35){var lane2=safeLaneForSpike(lanes[(lanes.indexOf(sl)+2)%3]);if(lane2!==sl)spawnSpike(lane2,zCenter);}
   }
-  if(Math.random()<0.4)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*6);
+  // anéis soltos extras (mais frequentes)
+  if(Math.random()<0.6)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*8);
+  if(Math.random()<0.4)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*8);
 }
 function spawnInitialTrack(){
   for(var i=0;i<world.chunks.length;i++)scene.remove(world.chunks[i].grp);
@@ -270,11 +317,51 @@ function spawnRing(x,z){
   var m=new THREE.Mesh(ringGeo,ringMat);m.position.set(x,1.3,z);m.castShadow=false;scene.add(m);
   world.rings.push(m);
 }
-var rampGeo,rampMat;
+var rampWedgeGeo,rampMat,rampArrowGeo,rampArrowMat,rampSideMat;
 function spawnRamp(x,z){
-  if(!rampGeo){rampGeo=new THREE.BoxGeometry(LANE_W*0.9,0.4,3);rampMat=new THREE.MeshStandardMaterial({color:0xa855f7,emissive:0x7c3aed,emissiveIntensity:.5});}
-  var m=new THREE.Mesh(rampGeo,rampMat);m.position.set(x,0.4,z);m.rotation.x=-0.35;m.castShadow=true;scene.add(m);
-  world.ramps.push(m);
+  if(!rampMat){
+    // cunha triangular (prisma) usando geometria customizada
+    var w=LANE_W*0.92, h=1.1, d=3.2;
+    var verts=new Float32Array([
+      // lado esquerdo (triângulo)
+      -w/2,0,d/2,  -w/2,0,-d/2,  -w/2,h,-d/2,
+      // lado direito
+       w/2,0,d/2,   w/2,h,-d/2,   w/2,0,-d/2,
+      // rampa (topo inclinado)
+      -w/2,0,d/2,  -w/2,h,-d/2,   w/2,h,-d/2,
+      -w/2,0,d/2,   w/2,h,-d/2,   w/2,0,d/2,
+      // fundo
+      -w/2,0,d/2,   w/2,0,d/2,    w/2,0,-d/2,
+      -w/2,0,d/2,   w/2,0,-d/2,  -w/2,0,-d/2,
+      // traseira (parede alta)
+      -w/2,0,-d/2,   w/2,0,-d/2,   w/2,h,-d/2,
+      -w/2,0,-d/2,   w/2,h,-d/2,  -w/2,h,-d/2
+    ]);
+    rampWedgeGeo=new THREE.BufferGeometry();
+    rampWedgeGeo.setAttribute('position',new THREE.BufferAttribute(verts,3));
+    rampWedgeGeo.computeVertexNormals();
+    rampMat=new THREE.MeshStandardMaterial({color:0x9333ea,emissive:0x6d28d9,emissiveIntensity:.45,roughness:.4,metalness:.3,side:THREE.DoubleSide});
+    rampArrowGeo=new THREE.ConeGeometry(0.28,0.5,4);
+    rampArrowMat=new THREE.MeshBasicMaterial({color:0xfde047});
+  }
+  var grp=new THREE.Group();
+  var wedge=new THREE.Mesh(rampWedgeGeo,rampMat);wedge.castShadow=true;grp.add(wedge);
+  // 3 setas amarelas brilhantes apontando pra frente, subindo a rampa
+  for(var a=0;a<3;a++){
+    var ar=new THREE.Mesh(rampArrowGeo,rampArrowMat);
+    ar.rotation.x=Math.PI/2; // aponta no -Z (frente)
+    ar.position.set(0, 0.35+a*0.28, 0.6 - a*0.9);
+    grp.add(ar);
+  }
+  // bordas neon ciano em cima
+  var edgeG=new THREE.BoxGeometry(0.12,0.12,3.2);
+  var edgeM=new THREE.MeshBasicMaterial({color:0x22d3ee});
+  var e1=new THREE.Mesh(edgeG,edgeM);e1.position.set(-LANE_W*0.46,0.55,0);e1.rotation.x=-0.33;grp.add(e1);
+  var e2=new THREE.Mesh(edgeG,edgeM);e2.position.set(LANE_W*0.46,0.55,0);e2.rotation.x=-0.33;grp.add(e2);
+  grp.position.set(x,0.0,z);
+  grp.userData={arrows:true};
+  scene.add(grp);
+  world.ramps.push(grp);
 }
 var spikeGeo,spikeMat,lavaGlowGeo,lavaGlowMat;
 function spawnSpike(x,z){
@@ -317,6 +404,7 @@ function startRun(){
   // reset total
   clearWorld();
   if(!trackMatA)trackMaterials();
+  setFloorTheme(0);
   G.run=true;G.rings=0;G.time=0;G.paused=false;G.speed=G.baseSpeed;G.z=0;
   laneIdx=1;targetX=0;
   player.vy=0;player.y=0;player.onGround=true;player.jumps=0;player.dead=false;player.boost=0;
@@ -345,8 +433,9 @@ function updateGame(dt){
   G.time+=dt;p018+=dt;
   document.getElementById('hTime').innerHTML='<small>TEMPO</small>'+G.time.toFixed(1)+'s';
   // velocidade base fixa até 250 anéis; depois sobe lentamente conforme coleta
-  var extra=G.rings>250?(G.rings-250)*0.06:0;
-  G.speed=G.baseSpeed+extra; if(G.speed>40)G.speed=40;
+  // velocidade sobe em degraus suaves a cada 50 anéis, com teto baixo
+  var steps=Math.floor(G.rings/50);
+  G.speed=G.baseSpeed+steps*0.7; if(G.speed>26)G.speed=26;
   var boost=player.boost>0?18:0; if(player.boost>0)player.boost-=dt;
   var sp=G.speed+boost;
   document.getElementById('hSpeed').innerHTML='<small>VELOC.</small>'+Math.round(sp*8);
@@ -390,7 +479,7 @@ function updateGame(dt){
       scene.remove(r);world.rings.splice(i,1);G.rings++;SFX.ring();particleBurst(r.position.x,1.3,0,0xffd700,8);
       document.getElementById('hRing').innerHTML='<small>ANÉIS</small>'+G.rings;
       popPoint('+1');
-      if(G.rings%50===0)reward50(G.rings);
+      if(G.rings%50===0){reward50(G.rings);setFloorTheme(G.rings/50);}
     } else if(r.position.z>14){scene.remove(r);world.rings.splice(i,1);}
   }
   // rampas
