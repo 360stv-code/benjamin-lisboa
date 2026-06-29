@@ -61,14 +61,18 @@
   .pop{position:absolute;font-weight:900;font-style:italic;color:#ffd700;text-shadow:0 0 12px rgba(255,215,0,.8),0 3px 6px rgba(0,0,0,.6);animation:popUp 0.9s cubic-bezier(.2,.8,.3,1) forwards;white-space:nowrap;}
   @keyframes popUp{0%{opacity:0;transform:translate(-50%,0) scale(.4);}20%{opacity:1;transform:translate(-50%,-14px) scale(1.25);}100%{opacity:0;transform:translate(-50%,-110px) scale(1);}}
   /* recompensa a cada 50 */
-  #reward{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(.5);z-index:8;pointer-events:none;opacity:0;text-align:center;}
-  #reward.show{animation:rewardPop 1.1s ease-out forwards;}
-  #reward .rbig{font-size:64px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));}
-  #reward .rtxt{font-weight:900;font-style:italic;font-size:30px;background:linear-gradient(90deg,#ffd700,#fb923c,#ffd700);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px rgba(251,146,60,.7));}
-  @keyframes rewardPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(-8deg);}25%{opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(3deg);}70%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg);}100%{opacity:0;transform:translate(-50%,-110%) scale(.9);}}
-  #rewardFlash{position:absolute;inset:0;z-index:7;pointer-events:none;background:radial-gradient(circle,rgba(255,200,80,.35),transparent 60%);opacity:0;}
+  #reward{position:absolute;right:14px;top:24%;transform:translateX(20px) scale(.6);z-index:8;pointer-events:none;opacity:0;text-align:right;max-width:46%;}
+  #reward.show{animation:rewardSide 1.3s ease-out forwards;}
+  #reward .rbig{font-size:46px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));}
+  #reward .rtxt{font-weight:900;font-style:italic;font-size:24px;background:linear-gradient(90deg,#ffd700,#fbbf24,#ffd700);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px rgba(251,191,36,.7));}
+  @keyframes rewardSide{0%{opacity:0;transform:translateX(40px) scale(.5);}20%{opacity:1;transform:translateX(0) scale(1.05);}75%{opacity:1;transform:translateX(0) scale(1);}100%{opacity:0;transform:translateX(20px) scale(.95);}}
+  #rewardFlash{position:absolute;inset:0;z-index:7;pointer-events:none;background:radial-gradient(circle,rgba(120,220,255,.4),transparent 60%);opacity:0;}
   #rewardFlash.show{animation:flash .6s ease-out;}
   @keyframes flash{0%{opacity:0;}30%{opacity:1;}100%{opacity:0;}}
+  /* nome grande de fundo (rápido) ao atingir 500 */
+  #bigName{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;opacity:0;font-weight:900;font-style:italic;font-size:clamp(40px,15vw,90px);letter-spacing:2px;white-space:nowrap;background:linear-gradient(90deg,#22d3ee,#a855f7,#f0abfc);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 24px rgba(168,85,247,.6));}
+  #bigName.show{animation:nameFlash 1.8s ease-out;}
+  @keyframes nameFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}15%{opacity:.9;transform:translate(-50%,-50%) scale(1.05);}70%{opacity:.85;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1);}}
 </style>
 </head>
 <body>
@@ -88,6 +92,7 @@
   <div id="popLayer"></div>
   <div id="rewardFlash"></div>
   <div id="reward"><div class="rbig">🎉</div><div class="rtxt"></div></div>
+  <div id="bigName"></div>
 
   <div class="screen on" id="scHome">
     <div class="brand"><div class="t1">LISBOA SOLUTIONS</div><div class="t2">BENJAX SURF 3D</div></div>
@@ -108,7 +113,7 @@
 <script>
 "use strict";
 /* ===================== BENJAX SURF 3D ===================== */
-var soundOn=true, skinIdx=0;
+var soundOn=true, skinIdx=0, playerName='';
 var SKIN_COLORS=[0x22d3ee,0xf97316,0xa855f7,0x22c55e,0xef4444,0xfbbf24];
 
 /* ---------- audio ---------- */
@@ -120,6 +125,8 @@ var SFX={
   ring:function(){tone(1175,.05,'sine',.16);tone(1568,.1,'sine',.14,.05);},
   boost:function(){tone(400,.05,'sawtooth',.12);tone(700,.05,'sawtooth',.12,.04);tone(1000,.08,'sawtooth',.12,.08);},
   reward:function(){[784,988,1175,1568].forEach(function(f,i){tone(f,.13,'triangle',.18,i*.05);});tone(2093,.18,'square',.12,.2);},
+  bluering:function(){[880,1175,1397].forEach(function(f,i){tone(f,.1,'sine',.18,i*.04);});},
+  diamond:function(){[523,784,1047,1319,1568,2093].forEach(function(f,i){tone(f,.14,'triangle',.2,i*.05);});tone(2637,.25,'sine',.14,.3);},
   die:function(){tone(330,.4,'sawtooth',.15);tone(160,.5,'sawtooth',.13,.1);},
   tap:function(){tone(600,.05,'square',.1);}
 };
@@ -137,7 +144,7 @@ var player, playerGroup, legL, legR, armL, armR;
 var lanes=[-LANE_W,0,LANE_W];
 var laneIdx=1, targetX=0;
 
-var world={chunks:[],rings:[],ramps:[],spikes:[],particles:[]};
+var world={chunks:[],rings:[],ramps:[],spikes:[],particles:[],diamonds:[]};
 var G={run:false,rings:0,time:0,paused:false,speed:0,baseSpeed:14,z:0};
 var p018=0; // contador geral
 
@@ -174,20 +181,14 @@ function initThree(){
     });
     scene.add(new THREE.Mesh(skyGeo,skyMat));
 
-    // LUA CHEIA bonita: esfera clara + crateras + halo
-    var moonGrp=new THREE.Group();
-    var moon=new THREE.Mesh(new THREE.SphereGeometry(7,40,40),new THREE.MeshStandardMaterial({color:0xf4f1e0,emissive:0xe8e4cf,emissiveIntensity:.85,roughness:1}));
-    moonGrp.add(moon);
-    // crateras (pequenas esferas escurecidas grudadas na superfície)
-    var craterMat=new THREE.MeshStandardMaterial({color:0xcfc9b0,emissive:0xb8b29a,emissiveIntensity:.4,roughness:1});
-    var craterData=[[2.2,2.0,0.9],[-2.8,1.2,1.2],[0.5,-2.5,1.0],[3.0,-1.5,0.7],[-1.5,-2.0,0.6],[-3.2,-1.8,0.5],[1.5,3.2,0.6]];
-    for(var ci=0;ci<craterData.length;ci++){var cd=craterData[ci];var cr=new THREE.Mesh(new THREE.SphereGeometry(cd[2],16,16),craterMat);
-      var cv2=new THREE.Vector3(cd[0],cd[1],Math.sqrt(Math.max(0,49-cd[0]*cd[0]-cd[1]*cd[1])));cr.position.copy(cv2.multiplyScalar(0.92));cr.scale.z=0.4;moonGrp.add(cr);}
-    // halo suave (esfera transparente maior, em vez de sprite que vira quadrado no Safari)
-    var haloGeo=new THREE.SphereGeometry(9.5,32,32);
-    var haloMat=new THREE.MeshBasicMaterial({color:0xbcd2ff,transparent:true,opacity:0.12,side:THREE.BackSide,depthWrite:false});
-    var halo=new THREE.Mesh(haloGeo,haloMat);moonGrp.add(halo);
-    moonGrp.position.set(16,20,-70);scene.add(moonGrp);
+    // NUVENS / NÉVOA no céu (no lugar da lua) — manchas suaves semitransparentes
+    var cloudMat=new THREE.MeshBasicMaterial({color:0x3a3470,transparent:true,opacity:0.28,depthWrite:false});
+    var cloudMat2=new THREE.MeshBasicMaterial({color:0x4a4290,transparent:true,opacity:0.20,depthWrite:false});
+    var cloudData=[[-30,28,-80,26,9],[24,34,-90,32,11],[2,22,-75,22,7],[40,40,-100,30,10],[-18,44,-95,28,9],[14,52,-110,34,12]];
+    for(var ci=0;ci<cloudData.length;ci++){var c=cloudData[ci];
+      var cl=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),(ci%2?cloudMat2:cloudMat));
+      cl.position.set(c[0],c[1],c[2]);cl.scale.set(c[3],c[4],1);scene.add(cl);
+    }
 
     // estrelas bem pequenas (muitas)
     var starGeo=new THREE.BufferGeometry(),sp=[];
@@ -254,7 +255,6 @@ var FLOOR_THEMES=[
   [0x2563eb,0x1e40af], // azul
   [0x0891b2,0x155e75], // ciano
   [0x7c3aed,0x5b21b6], // roxo
-  [0xea580c,0x9a3412], // laranja
   [0xca8a04,0x854d0e], // dourado
   [0x0d9488,0x115e59], // teal
   [0x4f46e5,0x3730a3]  // índigo
@@ -286,36 +286,49 @@ function populate(zCenter){
   var roll=Math.random();
   var hard=G.rings>250;
   var spikeChance=hard?0.30:0.16;
-  // a partir de 350: uma faixa fica SEMPRE livre de pedras, alternando a cada 50.
-  // ordem começando pela direita: direita(2) -> meio(1) -> esquerda(0) -> repete
+  // a partir de 360: uma faixa fica SEMPRE livre de pedras, alternando A CADA 60.
+  // ordem começando pela DIREITA: direita(2) -> meio(1) -> esquerda(0) -> repete
   var freeLane=null;
-  if(G.rings>350){
+  if(G.rings>=360){
     var order=[2,1,0];
-    var block=Math.floor((G.rings-350)/50);
+    var block=Math.floor((G.rings-360)/60);
     freeLane=lanes[order[block%3]];
   }
   function pickSpikeLane(L){
-    if(freeLane!==null && L===freeLane){ // não põe pedra na faixa livre: escolhe outra
+    if(freeLane!==null && L===freeLane){
       var opts=lanes.filter(function(x){return x!==freeLane;});
       return opts[Math.floor(Math.random()*opts.length)];
     }
     return L;
   }
+  // anel azul ocasional (vale 10) — escolhe um índice da linha pra virar azul
+  function lineOfRings(L,baseZ,count){
+    var blueAt=(Math.random()<0.18)?Math.floor(Math.random()*count):-1;
+    for(var i=0;i<count;i++)spawnRing(L,baseZ + i*2 -((count-1)), i===blueAt?'blue':'gold');
+  }
+
   if(roll<0.45){
-    for(var i=0;i<5;i++)spawnRing(lane,zCenter+ i*2 -4);
+    lineOfRings(lane,zCenter,6); // linha grande de anéis
   } else if(roll<0.60 && G.rings>10){
     spawnRamp(lane,zCenter);
-    spawnRing(lane,zCenter-3); spawnRing(lane,zCenter-5); spawnRing(lane,zCenter-7);
+    // SEM pedra logo depois da rampa: só anéis na MESMA faixa de pouso
+    spawnRing(lane,zCenter-3,'gold'); spawnRing(lane,zCenter-5,'gold'); spawnRing(lane,zCenter-7,'gold');
+    if(Math.random()<0.3)spawnRing(lane,zCenter-9,'blue');
   } else if(roll<0.60+spikeChance && G.rings>6){
     var sl=pickSpikeLane(lane);
     spawnSpike(sl,zCenter);
-    var safe=lanes[(lanes.indexOf(sl)+1)%3];spawnRing(safe,zCenter);spawnRing(safe,zCenter-2);
+    var safe=lanes[(lanes.indexOf(sl)+1)%3];lineOfRings(safe,zCenter,3);
     if(hard&&Math.random()<0.35){var lane2=pickSpikeLane(lanes[(lanes.indexOf(sl)+2)%3]);if(lane2!==sl)spawnSpike(lane2,zCenter);}
   }
-  // anéis na faixa livre como recompensa por seguir o caminho seguro
-  if(freeLane!==null && Math.random()<0.5)spawnRing(freeLane,zCenter-Math.random()*6);
-  if(Math.random()<0.6)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*8);
-  if(Math.random()<0.4)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*8);
+  // faixa livre recheada de anéis (recompensa o caminho seguro)
+  if(freeLane!==null){lineOfRings(freeLane,zCenter,4);}
+  // anéis soltos extras
+  if(Math.random()<0.6)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*8,'gold');
+  // DIAMANTE raro (bônus 100): aparece sozinho numa faixa, sem pedra por perto
+  if(G.rings>30 && Math.random()<0.025){
+    var dlane=freeLane!==null?freeLane:lanes[Math.floor(Math.random()*3)];
+    spawnDiamond(dlane,zCenter-1);
+  }
 }
 function spawnInitialTrack(){
   for(var i=0;i<world.chunks.length;i++)scene.remove(world.chunks[i].grp);
@@ -326,11 +339,27 @@ function spawnInitialTrack(){
     makeChunkAt(zc, i>=3); // 3 primeiros sem obstáculo (respiro inicial)
   }
 }
-var ringGeo,ringMat;
-function spawnRing(x,z){
-  if(!ringGeo){ringGeo=new THREE.TorusGeometry(0.55,0.16,12,24);ringMat=new THREE.MeshStandardMaterial({color:0xfbbf24,emissive:0xf59e0b,emissiveIntensity:.6,metalness:.6,roughness:.2});}
-  var m=new THREE.Mesh(ringGeo,ringMat);m.position.set(x,1.3,z);m.castShadow=false;scene.add(m);
-  world.rings.push(m);
+var ringGeo,ringMat,ringMatBlue,diamondGeo,diamondMat;
+function spawnRing(x,z,kind){
+  // kind: undefined/'gold' = anel comum (+1); 'blue' = anel azul (+10)
+  if(!ringGeo){
+    ringGeo=new THREE.TorusGeometry(0.55,0.16,12,24);
+    ringMat=new THREE.MeshStandardMaterial({color:0xfbbf24,emissive:0xf59e0b,emissiveIntensity:.6,metalness:.6,roughness:.2});
+    ringMatBlue=new THREE.MeshStandardMaterial({color:0x38bdf8,emissive:0x0ea5e9,emissiveIntensity:.8,metalness:.7,roughness:.15});
+  }
+  var blue=(kind==='blue');
+  var m=new THREE.Mesh(ringGeo,blue?ringMatBlue:ringMat);m.position.set(x,1.3,z);m.castShadow=false;
+  m.userData={blue:blue};
+  if(blue)m.scale.set(1.25,1.25,1.25);
+  scene.add(m);world.rings.push(m);
+}
+function spawnDiamond(x,z){
+  if(!diamondGeo){
+    diamondGeo=new THREE.OctahedronGeometry(0.7,0);
+    diamondMat=new THREE.MeshStandardMaterial({color:0x67e8f9,emissive:0x22d3ee,emissiveIntensity:.9,metalness:.9,roughness:.05,flatShading:true});
+  }
+  var m=new THREE.Mesh(diamondGeo,diamondMat);m.position.set(x,1.5,z);m.scale.set(1.3,1.6,1.3);
+  m.userData={diamond:true};scene.add(m);world.diamonds.push(m);
 }
 var rampWedgeGeo,rampMat,rampArrowGeo,rampArrowMat,rampSideMat;
 function spawnRamp(x,z){
@@ -397,7 +426,7 @@ function spawnSpike(x,z){
 }
 function clearWorld(){
   function rm(arr){for(var i=0;i<arr.length;i++){var o=arr[i].grp||arr[i];scene.remove(o);}arr.length=0;}
-  rm(world.chunks);rm(world.rings);rm(world.ramps);rm(world.spikes);
+  rm(world.chunks);rm(world.rings);rm(world.ramps);rm(world.spikes);rm(world.diamonds);
   for(var i=0;i<world.particles.length;i++)scene.remove(world.particles[i].m);world.particles.length=0;
   var pl=document.getElementById('popLayer');if(pl)pl.innerHTML='';
 }
@@ -450,10 +479,10 @@ function updateGame(dt){
   // velocidade base fixa até 250 anéis; depois sobe lentamente conforme coleta
   // velocidade sobe em degraus suaves a cada 50 anéis; teto sobe mais alto (continua após 1000)
   var steps=Math.floor(G.rings/50);
-  G.speed=G.baseSpeed+steps*0.55; if(G.speed>34)G.speed=34;
+  G.speed=G.baseSpeed+steps*0.55; if(G.speed>70)G.speed=70;
   var boost=player.boost>0?18:0; if(player.boost>0)player.boost-=dt;
   var sp=G.speed+boost;
-  document.getElementById('hSpeed').innerHTML='<small>VELOC.</small>'+Math.round(sp*8);
+  document.getElementById('hSpeed').innerHTML='<small>VELOC.</small>'+Math.round(sp*11)+' km/h';
   var dz=sp*dt; // quanto o mundo "vem" na nossa direção (move tudo no +Z)
   moveWorld(dz);
 
@@ -488,14 +517,32 @@ function updateGame(dt){
 
   // colisões / coleta
   var pz=0, px=playerGroup.position.x, py=player.y;
-  // anéis
+  // anéis (azul vale 10)
   for(var i=world.rings.length-1;i>=0;i--){var r=world.rings[i];r.rotation.y+=dt*4;
-    if(Math.abs(r.position.z-pz)<1.2&&Math.abs(r.position.x-px)<1.0&&Math.abs(r.position.y-(py+1.3))<1.4){
-      scene.remove(r);world.rings.splice(i,1);G.rings++;SFX.ring();particleBurst(r.position.x,1.3,0,0xffd700,8);
+    if(Math.abs(r.position.z-pz)<1.2&&Math.abs(r.position.x-px)<1.0&&Math.abs(r.position.y-(py+1.3))<1.6){
+      var blue=r.userData&&r.userData.blue;var val=blue?10:1;
+      scene.remove(r);world.rings.splice(i,1);
+      var before=G.rings;G.rings+=val;
+      if(blue){SFX.bluering();particleBurst(r.position.x,1.3,0,0x38bdf8,16);popPoint('+10','#38bdf8',54);}
+      else{SFX.ring();particleBurst(r.position.x,1.3,0,0xffd700,8);popPoint('+1','#ffd700',40);}
       document.getElementById('hRing').innerHTML='<small>ANÉIS</small>'+G.rings;
-      popPoint('+1');
-      if(G.rings%50===0){reward50(G.rings);setFloorTheme(G.rings/50);}
+      // dispara recompensa/tema/nome ao cruzar múltiplos de 50 (mesmo pulando com +10)
+      var cross50=Math.floor(G.rings/50)>Math.floor(before/50);
+      if(cross50){var mark=Math.floor(G.rings/50)*50;reward50(mark);setFloorTheme(mark/50);}
+      if(before<500&&G.rings>=500)showPlayerName();
     } else if(r.position.z>14){scene.remove(r);world.rings.splice(i,1);}
+  }
+  // diamantes (bônus 100)
+  for(var i=world.diamonds.length-1;i>=0;i--){var d=world.diamonds[i];d.rotation.y+=dt*2.5;d.position.y=1.5+Math.sin(p018*3+i)*0.2;
+    if(Math.abs(d.position.z-pz)<1.4&&Math.abs(d.position.x-px)<1.2&&Math.abs(d.position.y-(py+1.3))<1.8){
+      scene.remove(d);world.diamonds.splice(i,1);
+      var before2=G.rings;G.rings+=100;SFX.diamond();
+      particleBurst(d.position.x,1.5,0,0x67e8f9,26);particleBurst(d.position.x,1.5,0,0xffffff,18);
+      popPoint('+100','#67e8f9',64);diamondFlash();
+      document.getElementById('hRing').innerHTML='<small>ANÉIS</small>'+G.rings;
+      var c50=Math.floor(G.rings/50)>Math.floor(before2/50);if(c50){var mk=Math.floor(G.rings/50)*50;reward50(mk);setFloorTheme(mk/50);}
+      if(before2<500&&G.rings>=500)showPlayerName();
+    } else if(d.position.z>14){scene.remove(d);world.diamonds.splice(i,1);}
   }
   // rampas
   for(var i=world.ramps.length-1;i>=0;i--){var rp=world.ramps[i];
@@ -521,6 +568,7 @@ function moveWorld(dz){
   for(var i=0;i<world.rings.length;i++)world.rings[i].position.z+=dz;
   for(var i=0;i<world.ramps.length;i++)world.ramps[i].position.z+=dz;
   for(var i=0;i<world.spikes.length;i++)world.spikes[i].position.z+=dz;
+  for(var i=0;i<world.diamonds.length;i++)world.diamonds[i].position.z+=dz;
   // recicla chunk que passou da câmera -> recria na frente do mais distante
   for(var i=world.chunks.length-1;i>=0;i--){
     if(world.chunks[i].z>CHUNK*1.6){
@@ -543,10 +591,11 @@ function playerScreenPos(){
   var y=(-_v.y*0.5+0.5)*r.height + r.top;
   return {x:x,y:y};
 }
-function popPoint(txt){
+function popPoint(txt,color,size){
   var sp=playerScreenPos();
   var el=document.createElement('div');el.className='pop';el.textContent=txt;
-  el.style.left=sp.x+'px';el.style.top=sp.y+'px';el.style.fontSize='40px';
+  el.style.left=sp.x+'px';el.style.top=sp.y+'px';el.style.fontSize=(size||40)+'px';
+  if(color)el.style.color=color;
   document.getElementById('popLayer').appendChild(el);
   setTimeout(function(){el.remove();},900);
 }
@@ -558,10 +607,16 @@ function reward50(n){
   rw.querySelector('.rbig').textContent=icons[k];
   rw.querySelector('.rtxt').textContent=titles[k]+' '+n;
   rw.classList.remove('show');void rw.offsetWidth;rw.classList.add('show');
-  var fl=document.getElementById('rewardFlash');fl.classList.remove('show');void fl.offsetWidth;fl.classList.add('show');
   SFX.reward();
-  particleBurst(playerGroup.position.x,player.y+1.5,0,0xffd700,20);
-  particleBurst(playerGroup.position.x,player.y+1.5,0,0xfb923c,16);
+  particleBurst(playerGroup.position.x,player.y+1.5,0,0xffd700,16);
+}
+function diamondFlash(){
+  var fl=document.getElementById('rewardFlash');fl.classList.remove('show');void fl.offsetWidth;fl.classList.add('show');
+}
+function showPlayerName(){
+  var nameEl=document.getElementById('bigName');
+  nameEl.textContent=(playerName||'BENJAX').toUpperCase();
+  nameEl.classList.remove('show');void nameEl.offsetWidth;nameEl.classList.add('show');
 }
 
 function die(){
@@ -619,7 +674,21 @@ function openSkins(){
 }
 
 /* ---------- botões ---------- */
-document.getElementById('playBtn').onclick=function(){SFX.tap();startRun();};
+function askNameThenPlay(){
+  if(playerName){startRun();return;}
+  ov('<div class="big">🏁</div><h2>Qual é o seu nome?</h2>'+
+     '<input id="nameInput" maxlength="12" placeholder="Digite aqui" '+
+     'style="width:100%;padding:14px;border-radius:16px;border:2px solid rgba(34,211,238,.5);background:rgba(255,255,255,.1);color:#fff;font-size:18px;font-weight:800;text-align:center;outline:none;margin-bottom:12px;">'+
+     '<button class="obtn" id="nameOk">Começar ▶</button>');
+  var inp=document.getElementById('nameInput');setTimeout(function(){try{inp.focus();}catch(e){}},100);
+  document.getElementById('nameOk').onclick=function(){
+    playerName=(inp.value||'').trim().slice(0,12)||'Benjax';
+    ovClose();
+    ov('<div class="big">🎉</div><h2>Bem-vindo, '+playerName+'!</h2><p>Pega os anéis, voa nas rampas e desvia das pedras de lava. Boa sorte!</p><button class="obtn" id="goPlay">▶ CORRER</button>');
+    document.getElementById('goPlay').onclick=function(){ovClose();startRun();};
+  };
+}
+document.getElementById('playBtn').onclick=function(){SFX.tap();actx();askNameThenPlay();};
 document.getElementById('skinBtn').onclick=function(){SFX.tap();openSkins();};
 document.getElementById('sndBtn').onclick=function(){soundOn=!soundOn;document.getElementById('sndBtn').textContent=soundOn?'🔊':'🔇';if(soundOn){actx();SFX.tap();}};
 document.body.addEventListener('touchstart',function(){actx();},{once:true});
