@@ -1,4 +1,4 @@
-const CACHE = 'benjax-surf3d-v3';
+const CACHE = 'benjax-surf3d-v4';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
