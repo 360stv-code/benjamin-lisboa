@@ -100,7 +100,7 @@
   <div id="reward"><div class="rbig">🎉</div><div class="rtxt"></div></div>
   <div id="bigName"></div>
   <div id="cafeTimer"></div>
-  <div id="cafeBanner">☕ HORA DO CAFÉ!<br><span>Descanse 15 segundos</span></div>
+  <div id="cafeBanner">☕ HORA DO CAFÉ!<br><span>Descanse 7 segundos</span></div>
 
   <div class="screen on" id="scHome">
     <div class="brand"><div class="t1">LISBOA SOLUTIONS</div><div class="t2">BENJAX SURF 3D</div></div>
@@ -294,6 +294,8 @@ function makeChunkAt(zCenter,populateIt){
 function frontmostZ(){var m=999;for(var i=0;i<world.chunks.length;i++)if(world.chunks[i].z<m)m=world.chunks[i].z;return m;}
 var lastSpikeZ=999, cafeActive=false, cafeUntil=0, cafeNextAllowed=0, hourglassNextZ=999;
 var flying=false, flyUntil=0, nextRampTime=120; // rampa-bônus a cada 120s; voo de 5s
+var spikeGapCount=99; // chunks desde a última pedra (começa alto p/ liberar logo)
+var rampGapCount=0;   // chunks desde a última rampa normal
 function populate(zCenter){
   // durante o café: pista limpa (sem anéis, sem pedras)
   if(cafeActive) return;
@@ -320,14 +322,14 @@ function populate(zCenter){
     var blueAt=(Math.random()<0.18)?Math.floor(Math.random()*count):-1;
     for(var i=0;i<count;i++)spawnRing(L,baseZ + i*2 -((count-1)), i===blueAt?'blue':'gold');
   }
-  // espaçamento maior entre pedras: distância mínima cresce um pouco com a dificuldade
-  var MIN_SPIKE_GAP=16;
+  // espaçamento entre pedras medido em CHUNKS desde a última (robusto ao scroll do mundo)
   var spikePlaced=false;
-  // PEDRA: decidida SEPARADA do roll, com chance própria + respeito ao espaçamento
-  var spikeChance=hard?0.32:0.20;
-  if(G.rings>6 && (lastSpikeZ - zCenter) > MIN_SPIKE_GAP && Math.random()<spikeChance){
+  spikeGapCount++; // conta quantos chunks desde a última pedra
+  var MIN_SPIKE_CHUNKS=2; // pelo menos 2 chunks de distância (~24 unidades)
+  var spikeChance=hard?0.45:0.32;
+  if(G.rings>6 && spikeGapCount>=MIN_SPIKE_CHUNKS && Math.random()<spikeChance){
     var sl=pickSpikeLane(lane);
-    spawnSpike(sl,zCenter);lastSpikeZ=zCenter;spikePlaced=true;
+    spawnSpike(sl,zCenter);spikeGapCount=0;spikePlaced=true;
     // anéis numa faixa diferente da pedra, com folga
     var others=lanes.filter(function(x){return x!==sl;});
     var safe=others[Math.floor(Math.random()*others.length)];
@@ -338,6 +340,14 @@ function populate(zCenter){
   }
   // faixa livre recheada de anéis
   if(freeLane!==null){lineOfRings(freeLane,zCenter,4);}
+  // RAMPA normal na pista (dá impulso pra pular e pegar anéis altos) — espaçada
+  rampGapCount++;
+  if(!spikePlaced && rampGapCount>=4 && Math.random()<0.22){
+    var rlane=lane;
+    spawnRamp(rlane,zCenter);rampGapCount=0;
+    // anéis subindo após a rampa, na mesma faixa
+    spawnRing(rlane,zCenter-3,'gold');spawnRing(rlane,zCenter-5,'gold');spawnRing(rlane,zCenter-7,'gold');
+  }
   // anel solto extra (numa faixa sem pedra perto)
   if(!spikePlaced && Math.random()<0.5){var fl=lanes[Math.floor(Math.random()*NL)];spawnRing(fl,zCenter-Math.random()*8,'gold');}
   // DIAMANTE raro (bônus 100) — só até 1700 anéis
@@ -512,7 +522,7 @@ function startRun(){
   G.run=true;G.rings=0;G.time=0;G.paused=false;G.baseSpeed=14;G.speed=G.baseSpeed;G.z=0;G.slow=0;
   laneIdx=1;targetX=0;
   cafeActive=false;cafeUntil=0;cafeNextAllowed=0;lastSpikeZ=999;
-  flying=false;flyUntil=0;nextRampTime=120;G.slowFactor=1;
+  flying=false;flyUntil=0;nextRampTime=120;G.slowFactor=1;spikeGapCount=99;rampGapCount=0;
   document.getElementById('cafeTimer').style.display='none';
   player.vy=0;player.y=0;player.onGround=true;player.jumps=0;player.dead=false;player.boost=0;
   playerGroup.position.set(0,0,0);playerGroup.rotation.set(0,0,0);
@@ -585,20 +595,26 @@ function updateGame(dt){
   // animação: sentado (café), voando, correndo
   var runPhase=p018*16;
   if(cafeActive){
-    // SENTADO descansando: pernas dobradas pra frente, corpo baixo, bracinhos relaxados
-    legL.rotation.x=-1.4;legR.rotation.x=-1.4;
-    armL.rotation.x=-0.3;armR.rotation.x=-0.3;
-    playerGroup.position.y=player.y-0.5; // abaixa um pouco (sentado)
+    // SENTADO no chão descansando: corpo bem baixo, pernas esticadas pra frente, leve balanço
+    playerGroup.position.y=player.y-0.95;        // senta no chão
     playerGroup.rotation.z=0;
+    playerGroup.rotation.x=-0.25;                // recosta um pouquinho pra trás
+    legL.rotation.x=-1.6;legR.rotation.x=-1.6;   // pernas pra frente (sentado)
+    armL.rotation.x=-0.2;armR.rotation.x=-0.2;   // bracinhos relaxados
+    // respiração suave
+    var br=Math.sin(p018*2)*0.04;
+    legL.rotation.x=-1.6+br;legR.rotation.x=-1.6-br;
   } else if(flying){
-    // braços abertos voando
+    playerGroup.rotation.x=0;
     legL.rotation.x=0.3;legR.rotation.x=-0.3;armL.rotation.x=-2.4;armR.rotation.x=-2.4;
   } else if(player.onGround){
+    playerGroup.rotation.x=0;
     legL.rotation.x=Math.sin(runPhase)*0.8;
     legR.rotation.x=-Math.sin(runPhase)*0.8;
     armL.rotation.x=-Math.sin(runPhase)*0.7;
     armR.rotation.x=Math.sin(runPhase)*0.7;
   } else {
+    playerGroup.rotation.x=0;
     legL.rotation.x=-0.5;legR.rotation.x=0.5;armL.rotation.x=-1.5;armR.rotation.x=-1.5;
   }
 
@@ -729,9 +745,9 @@ function diamondFlash(){
   var fl=document.getElementById('rewardFlash');fl.classList.remove('show');void fl.offsetWidth;fl.classList.add('show');
 }
 function startCafe(){
-  cafeActive=true;cafeUntil=G.time+15;
+  cafeActive=true;cafeUntil=G.time+7;
   SFX.cafe();
-  var t=document.getElementById('cafeTimer');t.style.display='block';t.textContent='☕ 15s';
+  var t=document.getElementById('cafeTimer');t.style.display='block';t.textContent='☕ 7s';
   var b=document.getElementById('cafeBanner');b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
   function rm(arr){for(var i=0;i<arr.length;i++){var o=arr[i].grp||arr[i];scene.remove(o);}arr.length=0;}
   rm(world.rings);rm(world.spikes);rm(world.ramps);rm(world.diamonds);rm(world.hourglasses);
