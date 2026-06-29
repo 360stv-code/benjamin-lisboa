@@ -73,6 +73,12 @@
   #bigName{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;opacity:0;font-weight:900;font-style:italic;font-size:clamp(40px,15vw,90px);letter-spacing:2px;white-space:nowrap;background:linear-gradient(90deg,#22d3ee,#a855f7,#f0abfc);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 24px rgba(168,85,247,.6));}
   #bigName.show{animation:nameFlash 1.8s ease-out;}
   @keyframes nameFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}15%{opacity:.9;transform:translate(-50%,-50%) scale(1.05);}70%{opacity:.85;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1);}}
+  /* timer do café */
+  #cafeTimer{position:absolute;left:50%;top:46%;transform:translateX(-50%);z-index:9;pointer-events:none;display:none;font-weight:900;font-size:52px;color:#fef3c7;text-shadow:0 0 20px rgba(251,191,36,.8),0 4px 8px rgba(0,0,0,.6);}
+  #cafeBanner{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%) scale(.5);z-index:9;pointer-events:none;opacity:0;text-align:center;font-weight:900;font-style:italic;font-size:34px;color:#fde68a;text-shadow:0 0 18px rgba(251,191,36,.7),0 3px 6px rgba(0,0,0,.6);white-space:nowrap;}
+  #cafeBanner span{font-size:16px;font-style:normal;color:#fff;opacity:.9;}
+  #cafeBanner.show{animation:cafePop 2s ease-out;}
+  @keyframes cafePop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}15%{opacity:1;transform:translate(-50%,-50%) scale(1.1);}80%{opacity:1;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(1);}}
 </style>
 </head>
 <body>
@@ -93,6 +99,8 @@
   <div id="rewardFlash"></div>
   <div id="reward"><div class="rbig">🎉</div><div class="rtxt"></div></div>
   <div id="bigName"></div>
+  <div id="cafeTimer"></div>
+  <div id="cafeBanner">☕ HORA DO CAFÉ!<br><span>Descanse 15 segundos</span></div>
 
   <div class="screen on" id="scHome">
     <div class="brand"><div class="t1">LISBOA SOLUTIONS</div><div class="t2">BENJAX SURF 3D</div></div>
@@ -127,6 +135,9 @@ var SFX={
   reward:function(){[784,988,1175,1568].forEach(function(f,i){tone(f,.13,'triangle',.18,i*.05);});tone(2093,.18,'square',.12,.2);},
   bluering:function(){[880,1175,1397].forEach(function(f,i){tone(f,.1,'sine',.18,i*.04);});},
   diamond:function(){[523,784,1047,1319,1568,2093].forEach(function(f,i){tone(f,.14,'triangle',.2,i*.05);});tone(2637,.25,'sine',.14,.3);},
+  cafe:function(){[392,330,262].forEach(function(f,i){tone(f,.18,'sine',.16,i*.08);});tone(523,.3,'triangle',.14,.26);},
+  cafeEnd:function(){[523,659,784].forEach(function(f,i){tone(f,.12,'square',.16,i*.05);});},
+  slow:function(){var a=actx();if(!a||!soundOn)return;var o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.setValueAtTime(700,a.currentTime);o.frequency.exponentialRampToValueAtTime(160,a.currentTime+.5);g.gain.setValueAtTime(.18,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.52);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.52);},
   die:function(){tone(330,.4,'sawtooth',.15);tone(160,.5,'sawtooth',.13,.1);},
   tap:function(){tone(600,.05,'square',.1);}
 };
@@ -139,12 +150,12 @@ function ovClose(){document.getElementById('ov').style.display='none';}
 /* ===================== THREE SETUP ===================== */
 var renderer,scene,camera,clock;
 var THREE_READY=false;
-var LANE_W=2.4; // largura de cada faixa
+var LANE_W=1.9; // largura de cada faixa
 var player, playerGroup, legL, legR, armL, armR;
-var lanes=[-LANE_W,0,LANE_W];
-var laneIdx=1, targetX=0;
+var lanes=[-LANE_W*1.5,-LANE_W*0.5,LANE_W*0.5,LANE_W*1.5]; // 4 faixas
+var laneIdx=1, targetX=0; // começa na 2ª faixa
 
-var world={chunks:[],rings:[],ramps:[],spikes:[],particles:[],diamonds:[]};
+var world={chunks:[],rings:[],ramps:[],spikes:[],particles:[],diamonds:[],cafes:[],hourglasses:[]};
 var G={run:false,rings:0,time:0,paused:false,speed:0,baseSpeed:14,z:0};
 var p018=0; // contador geral
 
@@ -272,27 +283,31 @@ function setFloorTheme(idx){
 var CHUNK=12, chunkParity=0;
 function makeChunkAt(zCenter,populateIt){
   var g=new THREE.Group();
-  var floor=new THREE.Mesh(new THREE.BoxGeometry(LANE_W*3+0.6,1,CHUNK),(chunkParity%2?trackMatB:trackMatA));
+  var floor=new THREE.Mesh(new THREE.BoxGeometry(LANE_W*4+0.6,1,CHUNK),(chunkParity%2?trackMatB:trackMatA));
   floor.position.set(0,-0.5,zCenter);floor.receiveShadow=true;g.add(floor);
-  var eL=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.4,CHUNK),edgeMat);eL.position.set(-(LANE_W*1.5+0.4),0,zCenter);g.add(eL);
-  var eR=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.4,CHUNK),edgeMat);eR.position.set((LANE_W*1.5+0.4),0,zCenter);g.add(eR);
+  var eL=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.4,CHUNK),edgeMat);eL.position.set(-(LANE_W*2+0.4),0,zCenter);g.add(eL);
+  var eR=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.4,CHUNK),edgeMat);eR.position.set((LANE_W*2+0.4),0,zCenter);g.add(eR);
   scene.add(g);chunkParity++;
   world.chunks.push({grp:g,z:zCenter});
   if(populateIt)populate(zCenter);
 }
 function frontmostZ(){var m=999;for(var i=0;i<world.chunks.length;i++)if(world.chunks[i].z<m)m=world.chunks[i].z;return m;}
+var lastSpikeZ=999, cafeActive=false, cafeUntil=0, cafeNextAllowed=0, hourglassNextZ=999;
 function populate(zCenter){
-  var lane=lanes[Math.floor(Math.random()*3)];
+  // durante o café: pista limpa (sem anéis, sem pedras)
+  if(cafeActive) return;
+  var NL=lanes.length; // 4
+  var lane=lanes[Math.floor(Math.random()*NL)];
   var roll=Math.random();
   var hard=G.rings>250;
+  var noRamps=G.rings>500; // depois de 500, sem rampas
   var spikeChance=hard?0.30:0.16;
-  // a partir de 360: uma faixa fica SEMPRE livre de pedras, alternando A CADA 60.
-  // ordem começando pela DIREITA: direita(2) -> meio(1) -> esquerda(0) -> repete
+  // faixa livre alternando a cada 60, começando pela direita (índice 3 = mais à direita)
   var freeLane=null;
   if(G.rings>=360){
-    var order=[2,1,0];
+    var order=[3,2,1,0];
     var block=Math.floor((G.rings-360)/60);
-    freeLane=lanes[order[block%3]];
+    freeLane=lanes[order[block%NL]];
   }
   function pickSpikeLane(L){
     if(freeLane!==null && L===freeLane){
@@ -301,33 +316,50 @@ function populate(zCenter){
     }
     return L;
   }
-  // anel azul ocasional (vale 10) — escolhe um índice da linha pra virar azul
   function lineOfRings(L,baseZ,count){
     var blueAt=(Math.random()<0.18)?Math.floor(Math.random()*count):-1;
     for(var i=0;i<count;i++)spawnRing(L,baseZ + i*2 -((count-1)), i===blueAt?'blue':'gold');
   }
+  // garante distância mínima entre pedras pra não cair de uma na outra
+  var MIN_SPIKE_GAP=10; // unidades de Z
+  function canPlaceSpike(){ return (lastSpikeZ - zCenter) > MIN_SPIKE_GAP; }
 
   if(roll<0.45){
-    lineOfRings(lane,zCenter,6); // linha grande de anéis
-  } else if(roll<0.60 && G.rings>10){
+    lineOfRings(lane,zCenter,6);
+  } else if(roll<0.60 && G.rings>10 && !noRamps){
     spawnRamp(lane,zCenter);
-    // SEM pedra logo depois da rampa: só anéis na MESMA faixa de pouso
     spawnRing(lane,zCenter-3,'gold'); spawnRing(lane,zCenter-5,'gold'); spawnRing(lane,zCenter-7,'gold');
     if(Math.random()<0.3)spawnRing(lane,zCenter-9,'blue');
-  } else if(roll<0.60+spikeChance && G.rings>6){
+  } else if(roll<0.60+spikeChance && G.rings>6 && canPlaceSpike()){
     var sl=pickSpikeLane(lane);
-    spawnSpike(sl,zCenter);
-    var safe=lanes[(lanes.indexOf(sl)+1)%3];lineOfRings(safe,zCenter,3);
-    if(hard&&Math.random()<0.35){var lane2=pickSpikeLane(lanes[(lanes.indexOf(sl)+2)%3]);if(lane2!==sl)spawnSpike(lane2,zCenter);}
+    spawnSpike(sl,zCenter);lastSpikeZ=zCenter;
+    // anéis numa faixa diferente da pedra, com folga (nunca colados)
+    var others=lanes.filter(function(x){return x!==sl;});
+    var safe=others[Math.floor(Math.random()*others.length)];
+    lineOfRings(safe,zCenter,3);
+  } else {
+    // trecho de anéis soltos
+    lineOfRings(lane,zCenter,4);
   }
-  // faixa livre recheada de anéis (recompensa o caminho seguro)
+  // faixa livre recheada de anéis
   if(freeLane!==null){lineOfRings(freeLane,zCenter,4);}
-  // anéis soltos extras
-  if(Math.random()<0.6)spawnRing(lanes[Math.floor(Math.random()*3)],zCenter-Math.random()*8,'gold');
-  // DIAMANTE raro (bônus 100): aparece sozinho numa faixa, sem pedra por perto
-  if(G.rings>30 && Math.random()<0.025){
-    var dlane=freeLane!==null?freeLane:lanes[Math.floor(Math.random()*3)];
+  // anel solto extra numa faixa SEM pedra perto
+  if(Math.random()<0.5){var fl=lanes[Math.floor(Math.random()*NL)];if((lastSpikeZ-zCenter)>4||fl!==lanes[0])spawnRing(fl,zCenter-Math.random()*8,'gold');}
+  // DIAMANTE raro (bônus 100) — só até 1700 anéis
+  if(G.rings>30 && G.rings<1700 && Math.random()<0.025){
+    var dlane=freeLane!==null?freeLane:lanes[Math.floor(Math.random()*NL)];
     spawnDiamond(dlane,zCenter-1);
+  }
+  // XÍCARA DE CAFÉ ☕ — pode aparecer a qualquer momento, rara, respeitando cooldown
+  if(!cafeActive && G.rings>20 && G.time>cafeNextAllowed && Math.random()<0.012){
+    var clane=lanes[Math.floor(Math.random()*NL)];
+    spawnCafe(clane,zCenter-1);
+    cafeNextAllowed=G.time+25; // não spawna outra logo em seguida
+  }
+  // AMPULHETA ⏳ — aparece quando está rápido (freia metade ao pegar)
+  if(!cafeActive && G.speed>26 && Math.random()<0.03){
+    var hlane=lanes[Math.floor(Math.random()*NL)];
+    spawnHourglass(hlane,zCenter-1);
   }
 }
 function spawnInitialTrack(){
@@ -360,6 +392,40 @@ function spawnDiamond(x,z){
   }
   var m=new THREE.Mesh(diamondGeo,diamondMat);m.position.set(x,1.5,z);m.scale.set(1.3,1.6,1.3);
   m.userData={diamond:true};scene.add(m);world.diamonds.push(m);
+}
+// XÍCARA DE CAFÉ — cilindro branco com "café" escuro e alça
+var cafeCupGeo,cafeCupMat,cafeLiqGeo,cafeLiqMat,cafeHandleGeo;
+function spawnCafe(x,z){
+  if(!cafeCupGeo){
+    cafeCupGeo=new THREE.CylinderGeometry(0.55,0.42,0.7,20);
+    cafeCupMat=new THREE.MeshStandardMaterial({color:0xf8fafc,roughness:.4,metalness:.1,emissive:0x94a3b8,emissiveIntensity:.2});
+    cafeLiqGeo=new THREE.CylinderGeometry(0.48,0.48,0.12,20);
+    cafeLiqMat=new THREE.MeshStandardMaterial({color:0x5b3a1a,emissive:0x3b1f08,emissiveIntensity:.3,roughness:.3});
+    cafeHandleGeo=new THREE.TorusGeometry(0.28,0.08,10,20);
+  }
+  var grp=new THREE.Group();
+  var cup=new THREE.Mesh(cafeCupGeo,cafeCupMat);cup.castShadow=true;grp.add(cup);
+  var liq=new THREE.Mesh(cafeLiqGeo,cafeLiqMat);liq.position.y=0.3;grp.add(liq);
+  var handle=new THREE.Mesh(cafeHandleGeo,cafeCupMat);handle.position.set(0.6,0,0);handle.rotation.y=Math.PI/2;grp.add(handle);
+  grp.position.set(x,1.2,z);grp.userData={cafe:true};
+  scene.add(grp);world.cafes.push(grp);
+}
+// AMPULHETA — dois cones unidos, vidro azulado
+var hgGeo1,hgGeo2,hgMat,hgFrameGeo,hgFrameMat;
+function spawnHourglass(x,z){
+  if(!hgMat){
+    hgGeo1=new THREE.ConeGeometry(0.45,0.6,16);
+    hgMat=new THREE.MeshStandardMaterial({color:0x93c5fd,transparent:true,opacity:.75,emissive:0x3b82f6,emissiveIntensity:.4,roughness:.1,metalness:.3});
+    hgFrameGeo=new THREE.CylinderGeometry(0.5,0.5,0.1,16);
+    hgFrameMat=new THREE.MeshStandardMaterial({color:0xfbbf24,emissive:0xd97706,emissiveIntensity:.4,metalness:.6,roughness:.3});
+  }
+  var grp=new THREE.Group();
+  var top=new THREE.Mesh(hgGeo1,hgMat);top.position.y=0.35;grp.add(top);
+  var bot=new THREE.Mesh(hgGeo1,hgMat);bot.position.y=-0.35;bot.rotation.x=Math.PI;grp.add(bot);
+  var fTop=new THREE.Mesh(hgFrameGeo,hgFrameMat);fTop.position.y=0.7;grp.add(fTop);
+  var fBot=new THREE.Mesh(hgFrameGeo,hgFrameMat);fBot.position.y=-0.7;grp.add(fBot);
+  grp.position.set(x,1.4,z);grp.userData={hourglass:true};
+  scene.add(grp);world.hourglasses.push(grp);
 }
 var rampWedgeGeo,rampMat,rampArrowGeo,rampArrowMat,rampSideMat;
 function spawnRamp(x,z){
@@ -426,7 +492,7 @@ function spawnSpike(x,z){
 }
 function clearWorld(){
   function rm(arr){for(var i=0;i<arr.length;i++){var o=arr[i].grp||arr[i];scene.remove(o);}arr.length=0;}
-  rm(world.chunks);rm(world.rings);rm(world.ramps);rm(world.spikes);rm(world.diamonds);
+  rm(world.chunks);rm(world.rings);rm(world.ramps);rm(world.spikes);rm(world.diamonds);rm(world.cafes);rm(world.hourglasses);
   for(var i=0;i<world.particles.length;i++)scene.remove(world.particles[i].m);world.particles.length=0;
   var pl=document.getElementById('popLayer');if(pl)pl.innerHTML='';
 }
@@ -449,8 +515,10 @@ function startRun(){
   clearWorld();
   if(!trackMatA)trackMaterials();
   setFloorTheme(0);
-  G.run=true;G.rings=0;G.time=0;G.paused=false;G.speed=G.baseSpeed;G.z=0;
+  G.run=true;G.rings=0;G.time=0;G.paused=false;G.baseSpeed=14;G.speed=G.baseSpeed;G.z=0;G.slow=0;
   laneIdx=1;targetX=0;
+  cafeActive=false;cafeUntil=0;cafeNextAllowed=0;lastSpikeZ=999;
+  document.getElementById('cafeTimer').style.display='none';
   player.vy=0;player.y=0;player.onGround=true;player.jumps=0;player.dead=false;player.boost=0;
   playerGroup.position.set(0,0,0);playerGroup.rotation.set(0,0,0);
   // gera pista inicial limpa
@@ -476,14 +544,20 @@ function gameLoop(){
 function updateGame(dt){
   G.time+=dt;p018+=dt;
   document.getElementById('hTime').innerHTML='<small>TEMPO</small>'+G.time.toFixed(1)+'s';
-  // velocidade base fixa até 250 anéis; depois sobe lentamente conforme coleta
-  // velocidade sobe em degraus suaves a cada 50 anéis; teto sobe mais alto (continua após 1000)
+  // CAFÉ ativo: tudo desacelera bastante (descanso) e mostra timer
+  if(cafeActive){
+    var left=cafeUntil-G.time;
+    if(left<=0){endCafe();}
+    else{document.getElementById('cafeTimer').textContent='☕ '+Math.ceil(left)+'s';}
+  }
+  // velocidade sobe em degraus suaves a cada 50 anéis; teto alto (continua após 1000)
   var steps=Math.floor(G.rings/50);
   G.speed=G.baseSpeed+steps*0.55; if(G.speed>70)G.speed=70;
   var boost=player.boost>0?18:0; if(player.boost>0)player.boost-=dt;
   var sp=G.speed+boost;
+  if(cafeActive)sp=sp*0.18; // quase parado durante o café
   document.getElementById('hSpeed').innerHTML='<small>VELOC.</small>'+Math.round(sp*11)+' km/h';
-  var dz=sp*dt; // quanto o mundo "vem" na nossa direção (move tudo no +Z)
+  var dz=sp*dt;
   moveWorld(dz);
 
   // movimento lateral suave
@@ -544,6 +618,21 @@ function updateGame(dt){
       if(before2<500&&G.rings>=500)showPlayerName();
     } else if(d.position.z>14){scene.remove(d);world.diamonds.splice(i,1);}
   }
+  // XÍCARA DE CAFÉ — pega: limpa pista e começa pausa de 15s
+  for(var i=world.cafes.length-1;i>=0;i--){var cf=world.cafes[i];cf.rotation.y+=dt*1.5;cf.position.y=1.2+Math.sin(p018*2.5+i)*0.12;
+    if(Math.abs(cf.position.z-pz)<1.4&&Math.abs(cf.position.x-px)<1.2&&py<1.8){
+      scene.remove(cf);world.cafes.splice(i,1);
+      startCafe();
+    } else if(cf.position.z>14){scene.remove(cf);world.cafes.splice(i,1);}
+  }
+  // AMPULHETA — pega: reduz velocidade pela metade
+  for(var i=world.hourglasses.length-1;i>=0;i--){var hg=world.hourglasses[i];hg.rotation.y+=dt*2;
+    if(Math.abs(hg.position.z-pz)<1.4&&Math.abs(hg.position.x-px)<1.2&&py<1.9){
+      scene.remove(hg);world.hourglasses.splice(i,1);
+      G.slow=Math.max(G.slow||0,1); G.baseSpeed=Math.max(8,G.baseSpeed*0.5);
+      SFX.slow();particleBurst(hg.position.x,1.4,0,0x93c5fd,18);popPoint('FREOU!','#93c5fd',46);
+    } else if(hg.position.z>14){scene.remove(hg);world.hourglasses.splice(i,1);}
+  }
   // rampas
   for(var i=world.ramps.length-1;i>=0;i--){var rp=world.ramps[i];
     if(Math.abs(rp.position.z-pz)<1.6&&Math.abs(rp.position.x-px)<1.3&&py<1.5){
@@ -569,6 +658,8 @@ function moveWorld(dz){
   for(var i=0;i<world.ramps.length;i++)world.ramps[i].position.z+=dz;
   for(var i=0;i<world.spikes.length;i++)world.spikes[i].position.z+=dz;
   for(var i=0;i<world.diamonds.length;i++)world.diamonds[i].position.z+=dz;
+  for(var i=0;i<world.cafes.length;i++)world.cafes[i].position.z+=dz;
+  for(var i=0;i<world.hourglasses.length;i++)world.hourglasses[i].position.z+=dz;
   // recicla chunk que passou da câmera -> recria na frente do mais distante
   for(var i=world.chunks.length-1;i>=0;i--){
     if(world.chunks[i].z>CHUNK*1.6){
@@ -613,6 +704,21 @@ function reward50(n){
 function diamondFlash(){
   var fl=document.getElementById('rewardFlash');fl.classList.remove('show');void fl.offsetWidth;fl.classList.add('show');
 }
+function startCafe(){
+  cafeActive=true;cafeUntil=G.time+15;
+  SFX.cafe();
+  var t=document.getElementById('cafeTimer');t.style.display='block';t.textContent='☕ 15s';
+  var b=document.getElementById('cafeBanner');b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
+  // limpa anéis/pedras/itens que já estavam na pista (pausa de verdade)
+  function rm(arr){for(var i=0;i<arr.length;i++){var o=arr[i].grp||arr[i];scene.remove(o);}arr.length=0;}
+  rm(world.rings);rm(world.spikes);rm(world.ramps);rm(world.diamonds);rm(world.hourglasses);
+  lastSpikeZ=999;
+}
+function endCafe(){
+  cafeActive=false;cafeNextAllowed=G.time+20;
+  document.getElementById('cafeTimer').style.display='none';
+  SFX.cafeEnd();
+}
 function showPlayerName(){
   var nameEl=document.getElementById('bigName');
   nameEl.textContent=(playerName||'BENJAX').toUpperCase();
@@ -640,7 +746,7 @@ function onTouchStart(e){e.preventDefault();var t=e.touches?e.touches[0]:e;touch
 function onTouchMove(e){if(touchStartX===null)return;var t=e.touches?e.touches[0]:e;var dx=t.clientX-touchStartX;
   if(Math.abs(dx)>40&&!touchMoved){touchMoved=true;if(dx>0)moveLane(1);else moveLane(-1);}}
 function onTouchEnd(e){if(!touchMoved)jump();touchStartX=null;}
-function moveLane(d){var n=laneIdx+d;if(n<0)n=0;if(n>2)n=2;if(n!==laneIdx){laneIdx=n;SFX.tap();}}
+function moveLane(d){var n=laneIdx+d;if(n<0)n=0;if(n>3)n=3;if(n!==laneIdx){laneIdx=n;SFX.tap();}}
 function jump(){if(!G.run||G.paused)return;if(player.onGround){player.vy=20;player.onGround=false;player.jumps=1;SFX.jump();}else if(player.jumps<2){player.vy=17;player.jumps=2;SFX.jump();particleBurst(playerGroup.position.x,player.y+0.5,0,0x22d3ee,8);}}
 var canvasEl;
 function bindInput(){canvasEl=renderer.domElement;canvasEl.addEventListener('touchstart',onTouchStart,{passive:false});canvasEl.addEventListener('touchmove',onTouchMove,{passive:false});canvasEl.addEventListener('touchend',onTouchEnd);canvasEl.addEventListener('mousedown',onMouseDown);}
